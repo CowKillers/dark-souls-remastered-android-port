@@ -1,0 +1,12 @@
+# Android game profile for DARK SOULS: REMASTERED
+status	playable
+tested	v196608 SM-S911B
+package	org.nx2a.t01004ab00a260000
+requires	bcn
+setting	overlay=1
+setting	rumble=1
+setting	docked=0
+setting	fps=1
+setting	opacity=60
+env	DM_ADAPTIVE_FPS=0
+env	DM_FPS_PIN=30

@@ -1,0 +1,22 @@
+# Build outputs
+*.apk
+*/build/
+host/out/
+# Signing (never commit)
+*.keystore
+*.jks
+signing-key.json
+# Game files (never commit)
+*.dmsv
+*.nsp
+*.xci
+RomFS/
+captured_shaders/
+env.txt
+# Runtime junk
+vk_pipelines.bin
+vk_pipeline_cache
+*.log
+__pycache__/
+.DS_Store
+local.properties

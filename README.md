@@ -1,0 +1,44 @@
+# Dark Souls Remastered — port Android (nx2android)
+
+Launcher + host modificado para rodar Dark Souls Remastered no Android
+(provado no Galaxy S23, Adreno 740), a partir do runtime nx2android.
+Uso pessoal.
+
+## O que funciona
+
+- Jogo abre, passa por menu e chega ao gameplay, com saves funcionando.
+- Launcher próprio: Jogar, Importar dados, Configurações
+  (Handheld/Docked, FPS, opacidade, overlay, vibração), Sobre com
+  marcador de versão e fim do log.
+- Drivers de GPU: sistema, Turnip a7xx e a8xx empacotados, ou driver
+  importado (`.so`/`.zip`) via adrenotools.
+- Controle físico (ex.: Gamesir-X3 via USB-C) e overlay de toque na tela.
+- Import de dados via SAF: pasta com `RomFS/`, `shaders.dmsv` e `env.txt`.
+
+## O que NÃO está aqui (e nunca vai estar)
+
+- Arquivos do jogo: dump, RomFS, `shaders.dmsv`, data pack, APKs prontos.
+- Chaves: `prod.keys`, `title.keys` ou qualquer chave de assinatura.
+- Arte oficial do jogo: o ícone é um placeholder neutro, troque pelo seu.
+
+Traga seu próprio dump e importe pelo launcher. Assine com sua própria
+keystore (veja `BUILD.md`).
+
+## Como compilar
+
+Veja `BUILD.md`. Resumo: compile o host (`host/`), depois o launcher
+(`launcher/`). A próxima build precisa de `versionCode` maior que 5:
+este repo já marca 6. Trocar a chave de assinatura exige desinstalação
+limpa com backup de `files/` antes.
+
+## Problemas conhecidos
+
+- Grama sem alpha test e instabilidade de desempenho: issue #1.
+
+## Histórico curto
+
+- v1: launcher com Turnip + host só com o patch adrenotools.
+- diag: build só de log, que mediu o alpha test do jogo.
+- fix v4: variante de fragment shader com descarte GREATER (efeito na
+  grama ainda não confirmado no aparelho).
+- diag v5: repack do host da diag com `versionCode` maior, para o teste A/B.

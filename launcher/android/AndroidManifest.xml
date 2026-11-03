@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.nx2a.t01004ab00a260000"
+    android:versionCode="6"
+    android:versionName="1.0.3-launcher-v6">
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="36" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <application
+        android:label="@string/app_name"
+        android:icon="@drawable/ic_launcher"
+        android:hasCode="true"
+        android:extractNativeLibs="true"
+        android:isGame="true"
+        android:appCategory="game">
+        <activity
+            android:name="org.nx2a.launcher.DarkSoulsLauncherActivity"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:screenOrientation="sensorLandscape"
+            android:label="@string/app_name"
+            android:icon="@drawable/ic_launcher"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="android.app.NativeActivity"
+            android:label="@string/app_name"
+            android:icon="@drawable/ic_launcher"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize|screenLayout|density"
+            android:exported="false">
+            <meta-data android:name="android.app.lib_name" android:value="dmhost" />
+        </activity>
+    </application>
+</manifest>
