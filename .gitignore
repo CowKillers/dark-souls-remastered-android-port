@@ -20,3 +20,6 @@ vk_pipeline_cache
 __pycache__/
 .DS_Store
 local.properties
+
+# .NET tool build outputs
+obj/
