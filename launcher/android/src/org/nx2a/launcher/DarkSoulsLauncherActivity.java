@@ -97,6 +97,8 @@ public class DarkSoulsLauncherActivity extends Activity {
     private EmberView emberView;
     private ObjectAnimator ytPulseX;
     private ObjectAnimator ytPulseY;
+    private ObjectAnimator titleGlowPulse;
+    private ObjectAnimator edgePulse;
     private LinearLayout ytPill;
     private Typeface gameFont = null;
 
@@ -134,10 +136,11 @@ public class DarkSoulsLauncherActivity extends Activity {
         super.onCreate(savedInstanceState);
         setImmersive();
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(0xFF050505);
-        // Arte da fogueira enviada pelo usuario (Firelink Shrine, chama a direita):
-        // tela cheia, CENTER_CROP. A abinha fica na esquerda e o titulo no
-        // topo a direita, para nunca cobrir a chama.
+        root.setBackgroundColor(0xFF0B0B0D);
+        // Arte v9 enviada pelo usuario (cavaleiro com a espada em chamas a
+        // direita, eclipse no topo a esquerda): tela cheia, CENTER_CROP.
+        // A abinha fica na esquerda, o titulo no topo centralizado e a
+        // pilula do YouTube abaixo dele, para nunca cobrir o elmo.
         ImageView art = new ImageView(this);
         int artId = getResources().getIdentifier("launcher_art", "drawable", getPackageName());
         if (artId != 0) {
@@ -159,25 +162,12 @@ public class DarkSoulsLauncherActivity extends Activity {
         // ---- abinha vertical na esquerda ----
         FrameLayout tabWrap = new FrameLayout(this);
         FrameLayout.LayoutParams tabLp = new FrameLayout.LayoutParams(
-                dp(190), FrameLayout.LayoutParams.MATCH_PARENT);
+                dp(128), FrameLayout.LayoutParams.MATCH_PARENT);
         tabLp.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
         LinearLayout tab = new LinearLayout(this);
         tab.setOrientation(LinearLayout.VERTICAL);
-        tab.setBackgroundColor(0xE6121212);
-        tab.setPadding(dp(12), dp(14), dp(12), dp(12));
-        TextView tabTitle = new TextView(this);
-        tabTitle.setText("DARK SOULS");
-        tabTitle.setTextSize(15);
-        applyGameFont(tabTitle, 0.08f);
-        tabTitle.setTextColor(0xFFC9A227);
-        tab.addView(tabTitle);
-        View divider = new View(this);
-        divider.setBackgroundColor(0xFFC9A227);
-        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(2));
-        divLp.topMargin = dp(6);
-        divLp.bottomMargin = dp(10);
-        tab.addView(divider, divLp);
+        tab.setBackgroundColor(0xE60B0B0D);
+        tab.setPadding(dp(8), dp(12), dp(8), dp(12));
 
         playBtn = makeMenuButton("Jogar", true);
         playBtn.setOnClickListener(new View.OnClickListener() {
@@ -198,59 +188,70 @@ public class DarkSoulsLauncherActivity extends Activity {
         }), menuParams());
 
         statusText = new TextView(this);
-        statusText.setTextSize(11);
-        statusText.setTextColor(0xFFDDDDDD);
+        statusText.setTextSize(10);
+        statusText.setTextColor(0xFF8A8F98);
         statusText.setShadowLayer(dp(3), 0, dp(2), 0xFF000000);
         statusText.setPadding(0, dp(10), 0, 0);
         tab.addView(statusText);
 
         tabWrap.addView(tab, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        View goldEdge = new View(this);
-        goldEdge.setBackgroundColor(0xFFC9A227);
+        View emberEdge = new View(this);
+        emberEdge.setBackgroundColor(0xFFE85D1F);
         FrameLayout.LayoutParams edgeLp = new FrameLayout.LayoutParams(
                 dp(2), FrameLayout.LayoutParams.MATCH_PARENT);
         edgeLp.gravity = Gravity.END;
-        tabWrap.addView(goldEdge, edgeLp);
+        tabWrap.addView(emberEdge, edgeLp);
         tabWrap.setAlpha(0f);
         root.addView(tabWrap, tabLp);
 
-        // ---- titulo no topo a direita (sobre a pedra escura, fora da chama) ----
+        // ---- brilho ember atras do titulo (pulsa devagar) ----
+        View titleGlow = new View(this);
+        GradientDrawable tg = new GradientDrawable();
+        tg.setShape(GradientDrawable.RECTANGLE);
+        tg.setGradientType(GradientDrawable.RADIAL_GRADIENT);
+        tg.setGradientRadius(dp(190));
+        tg.setColors(new int[]{0x59FF7A1A, 0x00FF7A1A});
+        titleGlow.setBackground(tg);
+        FrameLayout.LayoutParams tgLp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, dp(150));
+        tgLp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        titleGlow.setAlpha(0.45f);
+        root.addView(titleGlow, tgLp);
+
+        // ---- titulo no topo, centralizado (entre o eclipse e o elmo) ----
         LinearLayout titleBlock = new LinearLayout(this);
         titleBlock.setOrientation(LinearLayout.VERTICAL);
-        titleBlock.setGravity(Gravity.END);
+        titleBlock.setGravity(Gravity.CENTER_HORIZONTAL);
         FrameLayout.LayoutParams titleLp = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        titleLp.gravity = Gravity.TOP | Gravity.END;
-        titleLp.topMargin = dp(52);
-        titleLp.rightMargin = dp(16);
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        titleLp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        titleLp.topMargin = dp(10);
         TextView title = new TextView(this);
         title.setText("DARK SOULS");
-        title.setTextSize(32);
+        title.setTextSize(28);
         applyGameFont(title, 0.08f);
         title.setTextColor(Color.WHITE);
-        title.setGravity(Gravity.END);
+        title.setGravity(Gravity.CENTER);
         title.setShadowLayer(dp(4), 0, dp(2), 0xFF000000);
         titleBlock.addView(title);
         TextView sub = new TextView(this);
         sub.setText("REMASTERED  \u2022  Android Port");
-        sub.setTextSize(14);
+        sub.setTextSize(13);
         applyGameFont(sub, 0.05f);
-        sub.setTextColor(0xFFC9A227);
-        sub.setGravity(Gravity.END);
+        sub.setTextColor(0xFFD4A437);
+        sub.setGravity(Gravity.CENTER);
         sub.setShadowLayer(dp(3), 0, dp(2), 0xFF000000);
         titleBlock.addView(sub);
+        // ---- pilula do YouTube: pequena, centralizada abaixo do titulo ----
+        ytPill = makeYtPill();
+        LinearLayout.LayoutParams ytLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        ytLp.gravity = Gravity.CENTER_HORIZONTAL;
+        ytLp.topMargin = dp(8);
+        titleBlock.addView(ytPill, ytLp);
         titleBlock.setAlpha(0f);
         root.addView(titleBlock, titleLp);
-
-        // ---- pilula do YouTube: pequena, no topo a direita, com pulso sutil ----
-        ytPill = makeYtPill();
-        FrameLayout.LayoutParams ytLp = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        ytLp.gravity = Gravity.TOP | Gravity.END;
-        ytLp.topMargin = dp(10);
-        ytLp.rightMargin = dp(12);
-        root.addView(ytPill, ytLp);
 
 
         setContentView(root);
@@ -266,6 +267,15 @@ public class DarkSoulsLauncherActivity extends Activity {
         ytPulseY.setDuration(1600);
         ytPulseY.setRepeatCount(ValueAnimator.INFINITE);
         ytPulseY.start();
+        // Brilho do titulo pulsando devagar + borda da abinha pulsando.
+        titleGlowPulse = ObjectAnimator.ofFloat(titleGlow, "alpha", 0.3f, 0.65f, 0.3f);
+        titleGlowPulse.setDuration(2200);
+        titleGlowPulse.setRepeatCount(ValueAnimator.INFINITE);
+        titleGlowPulse.start();
+        edgePulse = ObjectAnimator.ofFloat(emberEdge, "alpha", 0.55f, 1f, 0.55f);
+        edgePulse.setDuration(1800);
+        edgePulse.setRepeatCount(ValueAnimator.INFINITE);
+        edgePulse.start();
         loadSettings();
         loadDriverChoice();
         refreshPlay();
@@ -290,6 +300,8 @@ public class DarkSoulsLauncherActivity extends Activity {
     protected void onDestroy() {
         if (ytPulseX != null) ytPulseX.cancel();
         if (ytPulseY != null) ytPulseY.cancel();
+        if (titleGlowPulse != null) titleGlowPulse.cancel();
+        if (edgePulse != null) edgePulse.cancel();
         super.onDestroy();
     }
 
@@ -333,8 +345,9 @@ public class DarkSoulsLauncherActivity extends Activity {
         return pill;
     }
 
-    // Brasas subindo da fogueira + brilho tremeluzindo. ~30 fps, so roda
-    // com a activity visivel (setRunning em onResume/onPause).
+    // v9: brasas subindo das chamas da espada + halo do eclipse (respira
+    // devagar) + brilho da chama tremeluzindo. ~30 fps, so roda com a
+    // activity visivel (setRunning em onResume/onPause).
     private static class EmberView extends View {
         private static class Ember {
             float x, y, speed, sway, phase, size, alpha;
@@ -343,6 +356,7 @@ public class DarkSoulsLauncherActivity extends Activity {
         private final java.util.List<Ember> embers = new java.util.ArrayList<Ember>();
         private final Paint paint = new Paint();
         private final Paint glowPaint = new Paint();
+        private final Paint eclipsePaint = new Paint();
         private final java.util.Random rnd = new java.util.Random(20261109);
         private final int[] emberColors = {0xFFFF8C1A, 0xFFFFB347, 0xFFFF5A00, 0xFFFFD27A};
         private final float density;
@@ -350,6 +364,8 @@ public class DarkSoulsLauncherActivity extends Activity {
         private long startMs = System.currentTimeMillis();
         private RadialGradient glowGrad;
         private float glowCx, glowCy, glowR;
+        private RadialGradient eclipseGrad;
+        private float eclipseCx, eclipseCy, eclipseR;
         private final Runnable tick = new Runnable() {
             @Override public void run() {
                 if (!running) return;
@@ -363,6 +379,7 @@ public class DarkSoulsLauncherActivity extends Activity {
             density = ctx.getResources().getDisplayMetrics().density;
             paint.setAntiAlias(true);
             glowPaint.setAntiAlias(true);
+            eclipsePaint.setAntiAlias(true);
         }
 
         void setRunning(boolean r) {
@@ -380,12 +397,20 @@ public class DarkSoulsLauncherActivity extends Activity {
         protected void onSizeChanged(int w, int h, int oldw, int oldh) {
             super.onSizeChanged(w, h, oldw, oldh);
             if (w <= 0 || h <= 0) return;
-            glowCx = 0.64f * w;
-            glowCy = 0.42f * h;
-            glowR = 0.38f * h;
+            // Arte v9 (medido na imagem): eclipse em (0.33w, 0.18h), chamas
+            // da espada em (0.70w, 0.25h).
+            glowCx = 0.70f * w;
+            glowCy = 0.25f * h;
+            glowR = 0.30f * h;
             glowGrad = new RadialGradient(glowCx, glowCy, glowR,
                     0x66FF7A1A, 0x00FF7A1A, Shader.TileMode.CLAMP);
             glowPaint.setShader(glowGrad);
+            eclipseCx = 0.33f * w;
+            eclipseCy = 0.18f * h;
+            eclipseR = 0.22f * h;
+            eclipseGrad = new RadialGradient(eclipseCx, eclipseCy, eclipseR,
+                    0x55E85D1F, 0x00E85D1F, Shader.TileMode.CLAMP);
+            eclipsePaint.setShader(eclipseGrad);
             if (embers.isEmpty()) {
                 for (int i = 0; i < 24; i++) {
                     Ember e = new Ember();
@@ -396,8 +421,15 @@ public class DarkSoulsLauncherActivity extends Activity {
         }
 
         private void resetEmber(Ember e, int w, int h, boolean anywhere) {
-            e.x = (0.55f + rnd.nextFloat() * 0.28f) * w;
-            e.y = anywhere ? rnd.nextFloat() * h : h * (0.92f + rnd.nextFloat() * 0.08f);
+            // 70% nascem nas chamas da espada (0.62-0.76w, 0.30-0.55h) e
+            // sobem; o resto nasce em qualquer lugar da tela.
+            if (rnd.nextFloat() < 0.7f) {
+                e.x = (0.62f + rnd.nextFloat() * 0.14f) * w;
+                e.y = anywhere ? (0.10f + rnd.nextFloat() * 0.45f) * h : (0.30f + rnd.nextFloat() * 0.25f) * h;
+            } else {
+                e.x = rnd.nextFloat() * w;
+                e.y = anywhere ? rnd.nextFloat() * h : h * (0.92f + rnd.nextFloat() * 0.08f);
+            }
             e.speed = 0.03f + rnd.nextFloat() * 0.05f; // fracao da altura por segundo
             e.sway = 0.4f + rnd.nextFloat() * 1.2f;
             e.phase = rnd.nextFloat() * 6.28f;
@@ -412,6 +444,12 @@ public class DarkSoulsLauncherActivity extends Activity {
             int w = getWidth(), h = getHeight();
             if (w <= 0 || h <= 0 || glowGrad == null) return;
             float t = (System.currentTimeMillis() - startMs) / 1000f;
+            // Halo do eclipse: respira devagar (ciclo ~8 s).
+            if (eclipseGrad != null) {
+                float breathe = 0.5f + 0.3f * (float) Math.sin(t * 0.8f);
+                eclipsePaint.setAlpha((int) (breathe * 110));
+                canvas.drawCircle(eclipseCx, eclipseCy, eclipseR, eclipsePaint);
+            }
             float flick = 0.55f + 0.25f * (float) Math.sin(t * 2.1f)
                     + 0.2f * (float) Math.sin(t * 5.3f + 1.7f);
             if (flick < 0.15f) flick = 0.15f;
@@ -462,17 +500,17 @@ public class DarkSoulsLauncherActivity extends Activity {
     private Button makeMenuButton(String text, boolean primary, View.OnClickListener l) {
         Button b = new Button(this);
         b.setText(text);
-        b.setTextSize(14);
+        b.setTextSize(12);
         applyGameFont(b, 0.04f);
         b.setTextColor(Color.WHITE);
-        b.setMinimumHeight(dp(44));
-        b.setPadding(dp(10), dp(6), dp(10), dp(6));
+        b.setMinimumHeight(dp(40));
+        b.setPadding(dp(6), dp(6), dp(6), dp(6));
         GradientDrawable d = new GradientDrawable();
         // Transluzido, na tonalidade da foto: a foto continua visivel
         // atras dos botoes; nada de botao branco/opaco escondendo a foto.
-        d.setColor(primary ? 0xDD6B4E1A : 0xCC141414);
+        d.setColor(primary ? 0xDDE85D1F : 0xCC0B0B0D);
         d.setCornerRadius(dp(12));
-        d.setStroke(dp(2), 0xFF8C6A1F);
+        d.setStroke(dp(2), 0xFFE85D1F);
         b.setBackground(d);
         if (l != null) b.setOnClickListener(l);
         return b;
@@ -542,17 +580,17 @@ public class DarkSoulsLauncherActivity extends Activity {
 
     private GradientDrawable dialogBg() {
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xFF141414);
+        bg.setColor(0xFF0B0B0D);
         bg.setCornerRadius(dp(20));
-        bg.setStroke(dp(2), 0xFF8C6A1F);
+        bg.setStroke(dp(2), 0xFFE85D1F);
         return bg;
     }
 
     private void styleDialogButton(Button b) {
         GradientDrawable d = new GradientDrawable();
-        d.setColor(0xFF6B4E1A);
+        d.setColor(0xFF7A1E0B);
         d.setCornerRadius(dp(12));
-        d.setStroke(dp(2), 0xFF8C6A1F);
+        d.setStroke(dp(2), 0xFFE85D1F);
         b.setBackground(d);
         b.setTextColor(Color.WHITE);
         applyGameFont(b, 0.04f);
@@ -1270,7 +1308,7 @@ public class DarkSoulsLauncherActivity extends Activity {
         col.addView(makeYtPill(), spacedParams());
         TextView logTitle = new TextView(this);
         logTitle.setTextSize(13);
-        logTitle.setTextColor(0xFFC9A227);
+        logTitle.setTextColor(0xFFD4A437);
         logTitle.setText("Log (ultimas 30 linhas):");
         col.addView(logTitle);
         TextView logTv = new TextView(this);
@@ -1452,7 +1490,7 @@ public class DarkSoulsLauncherActivity extends Activity {
         importLoadingPct = new TextView(DarkSoulsLauncherActivity.this);
         importLoadingPct.setTextSize(24);
         importLoadingPct.setTypeface(null, android.graphics.Typeface.BOLD);
-        importLoadingPct.setTextColor(0xFFC9A227);
+        importLoadingPct.setTextColor(0xFFD4A437);
         importLoadingPct.setText("\u2026");
         col.addView(importLoadingPct);
         LinearLayout track = new LinearLayout(DarkSoulsLauncherActivity.this);
@@ -1463,7 +1501,7 @@ public class DarkSoulsLauncherActivity extends Activity {
         track.setBackground(trackBg);
         importLoadingFill = new View(DarkSoulsLauncherActivity.this);
         GradientDrawable fillBg = new GradientDrawable();
-        fillBg.setColor(0xFF8C6A1F);
+        fillBg.setColor(0xFFE85D1F);
         float r = dp(8);
         fillBg.setCornerRadii(new float[]{r, r, 0, 0, 0, 0, r, r});
         importLoadingFill.setBackground(fillBg);

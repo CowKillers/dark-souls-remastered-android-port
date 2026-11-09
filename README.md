@@ -31,8 +31,8 @@ keystore (veja `BUILD.md`).
 ## Como compilar
 
 Veja `BUILD.md`. Resumo: compile o host (`host/`), depois o launcher
-(`launcher/`). A próxima build precisa de `versionCode` maior que 8:
-este repo já marca 8. Trocar a chave de assinatura exige desinstalação
+(`launcher/`). A próxima build precisa de `versionCode` maior que 9:
+este repo já marca 9. Trocar a chave de assinatura exige desinstalação
 limpa com backup de `files/` antes.
 
 ## Problemas conhecidos
@@ -53,3 +53,9 @@ limpa com backup de `files/` antes.
   do alpha test (GREATER) e o patch adrenotools.
 - v8: igual à v7, sem o som de fogueira e sem o botão de mudo
   (removidos a pedido do usuário; brasas, YouTube e Ocultar ficam).
+- v9: launcher refeito com a arte do cavaleiro e do eclipse (título
+  centralizado no topo, pílula do YouTube abaixo dele), paleta
+  tirada da arte (preto, laranja brasa, dourado da espada, cinza frio)
+  e efeitos de iluminação (halo do eclipse, brilho da chama,
+  brasas, brilho do título, borda da abinha pulsando). Host igual
+  ao da v7/v8 (fix alpha + Ocultar); sem som de fogo.
