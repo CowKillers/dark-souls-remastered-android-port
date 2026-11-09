@@ -98,7 +98,6 @@ public class DarkSoulsLauncherActivity extends Activity {
     private ObjectAnimator ytPulseX;
     private ObjectAnimator ytPulseY;
     private ObjectAnimator titleGlowPulse;
-    private ObjectAnimator edgePulse;
     private LinearLayout ytPill;
     private Typeface gameFont = null;
 
@@ -166,7 +165,6 @@ public class DarkSoulsLauncherActivity extends Activity {
         tabLp.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
         LinearLayout tab = new LinearLayout(this);
         tab.setOrientation(LinearLayout.VERTICAL);
-        tab.setBackgroundColor(0xE60B0B0D);
         tab.setPadding(dp(8), dp(12), dp(8), dp(12));
 
         playBtn = makeMenuButton("Jogar", true);
@@ -196,12 +194,6 @@ public class DarkSoulsLauncherActivity extends Activity {
 
         tabWrap.addView(tab, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        View emberEdge = new View(this);
-        emberEdge.setBackgroundColor(0xFFE85D1F);
-        FrameLayout.LayoutParams edgeLp = new FrameLayout.LayoutParams(
-                dp(2), FrameLayout.LayoutParams.MATCH_PARENT);
-        edgeLp.gravity = Gravity.END;
-        tabWrap.addView(emberEdge, edgeLp);
         tabWrap.setAlpha(0f);
         root.addView(tabWrap, tabLp);
 
@@ -267,15 +259,11 @@ public class DarkSoulsLauncherActivity extends Activity {
         ytPulseY.setDuration(1600);
         ytPulseY.setRepeatCount(ValueAnimator.INFINITE);
         ytPulseY.start();
-        // Brilho do titulo pulsando devagar + borda da abinha pulsando.
+        // Brilho do titulo pulsando devagar.
         titleGlowPulse = ObjectAnimator.ofFloat(titleGlow, "alpha", 0.3f, 0.65f, 0.3f);
         titleGlowPulse.setDuration(2200);
         titleGlowPulse.setRepeatCount(ValueAnimator.INFINITE);
         titleGlowPulse.start();
-        edgePulse = ObjectAnimator.ofFloat(emberEdge, "alpha", 0.55f, 1f, 0.55f);
-        edgePulse.setDuration(1800);
-        edgePulse.setRepeatCount(ValueAnimator.INFINITE);
-        edgePulse.start();
         loadSettings();
         loadDriverChoice();
         refreshPlay();
@@ -301,7 +289,6 @@ public class DarkSoulsLauncherActivity extends Activity {
         if (ytPulseX != null) ytPulseX.cancel();
         if (ytPulseY != null) ytPulseY.cancel();
         if (titleGlowPulse != null) titleGlowPulse.cancel();
-        if (edgePulse != null) edgePulse.cancel();
         super.onDestroy();
     }
 
