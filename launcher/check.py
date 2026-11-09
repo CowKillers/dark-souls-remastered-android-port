@@ -63,15 +63,13 @@ def main():
     names = z.namelist()
     if not any("launcher_art.png" in n for n in names):
         print("FAIL: launcher_art.png ausente"); ok = False
-    if not any("fire_loop.mp3" in n for n in names):
-        print("FAIL: fire_loop.mp3 ausente"); ok = False
     if "classes.dex" not in offs:
         print("FAIL: classes.dex ausente"); ok = False
     elif offs["classes.dex"][1] % 4 != 0:
         print("FAIL: classes.dex desalinhado (mod 4)"); ok = False
     dex = z.read("classes.dex")
     for marker in (b"DarkSoulsLauncherActivity", b"DM_VK_DRIVER", b"turnip-a7xx", b"turnip-a8xx", b"gpu_drivers",
-                   b"youtube.com/@emuucheck", b"fire_loop", b"EmberView", b"launcher_art"):
+                   b"youtube.com/@emuucheck", b"EmberView", b"launcher_art"):
         if marker not in dex:
             print("FAIL: dex sem marcador %s" % marker); ok = False
     if b"NinjaGaiden" in dex or b"turnip-8g2" in dex:

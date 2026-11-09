@@ -16,7 +16,6 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RadialGradient;
 import android.graphics.Shader;
-import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -95,12 +94,9 @@ public class DarkSoulsLauncherActivity extends Activity {
     private String importedSoName = "";
     private Button configDriversBtn;
     // ---- v7: fogo, brasas, YouTube ----
-    private MediaPlayer firePlayer;
-    private boolean fireMuted = false;
     private EmberView emberView;
     private ObjectAnimator ytPulseX;
     private ObjectAnimator ytPulseY;
-    private Button muteBtn;
     private LinearLayout ytPill;
     private Typeface gameFont = null;
 
@@ -256,26 +252,6 @@ public class DarkSoulsLauncherActivity extends Activity {
         ytLp.rightMargin = dp(12);
         root.addView(ytPill, ytLp);
 
-        // ---- mudo do fogo, canto inferior direito ----
-        muteBtn = new Button(this);
-        muteBtn.setText("Fogo: ON");
-        muteBtn.setTextSize(12);
-        applyGameFont(muteBtn, 0.04f);
-        muteBtn.setTextColor(Color.WHITE);
-        GradientDrawable md = new GradientDrawable();
-        md.setColor(0xCC141414);
-        md.setCornerRadius(dp(12));
-        md.setStroke(dp(2), 0xFF8C6A1F);
-        muteBtn.setBackground(md);
-        muteBtn.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { toggleFireMute(); }
-        });
-        FrameLayout.LayoutParams muteLp = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        muteLp.gravity = Gravity.BOTTOM | Gravity.END;
-        muteLp.bottomMargin = dp(10);
-        muteLp.rightMargin = dp(12);
-        root.addView(muteBtn, muteLp);
 
         setContentView(root);
         // Fade-in do titulo e da abinha ao abrir.
@@ -290,7 +266,6 @@ public class DarkSoulsLauncherActivity extends Activity {
         ytPulseY.setDuration(1600);
         ytPulseY.setRepeatCount(ValueAnimator.INFINITE);
         ytPulseY.start();
-        startFireLoop();
         loadSettings();
         loadDriverChoice();
         refreshPlay();
@@ -300,7 +275,6 @@ public class DarkSoulsLauncherActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (emberView != null) emberView.setRunning(true);
-        resumeFireLoop();
         loadSettings();
         loadDriverChoice();
         refreshPlay();
@@ -309,7 +283,6 @@ public class DarkSoulsLauncherActivity extends Activity {
     @Override
     protected void onPause() {
         if (emberView != null) emberView.setRunning(false);
-        pauseFireLoop();
         super.onPause();
     }
 
@@ -317,57 +290,9 @@ public class DarkSoulsLauncherActivity extends Activity {
     protected void onDestroy() {
         if (ytPulseX != null) ytPulseX.cancel();
         if (ytPulseY != null) ytPulseY.cancel();
-        stopFireLoop();
         super.onDestroy();
     }
 
-    // ---- fogo: loop de crepitacao (res/raw/fire_loop.mp3) ----
-    private void startFireLoop() {
-        try {
-            if (firePlayer != null) return;
-            int id = getResources().getIdentifier("fire_loop", "raw", getPackageName());
-            if (id == 0) return;
-            firePlayer = MediaPlayer.create(this, id);
-            if (firePlayer == null) return;
-            firePlayer.setLooping(true);
-            firePlayer.setVolume(fireMuted ? 0f : 0.35f, fireMuted ? 0f : 0.35f);
-            firePlayer.start();
-        } catch (Exception ignored) {
-            firePlayer = null; // o launcher nunca trava por causa do som
-        }
-    }
-
-    private void pauseFireLoop() {
-        try {
-            if (firePlayer != null && firePlayer.isPlaying()) firePlayer.pause();
-        } catch (Exception ignored) {}
-    }
-
-    private void resumeFireLoop() {
-        try {
-            if (firePlayer != null && !fireMuted && !firePlayer.isPlaying()) firePlayer.start();
-        } catch (Exception ignored) {}
-    }
-
-    private void stopFireLoop() {
-        try {
-            if (firePlayer != null) { firePlayer.stop(); firePlayer.release(); }
-        } catch (Exception ignored) {
-        } finally {
-            firePlayer = null;
-        }
-    }
-
-    private void toggleFireMute() {
-        fireMuted = !fireMuted;
-        try {
-            if (firePlayer != null) {
-                firePlayer.setVolume(fireMuted ? 0f : 0.35f, fireMuted ? 0f : 0.35f);
-                if (!fireMuted && !firePlayer.isPlaying()) firePlayer.start();
-            }
-        } catch (Exception ignored) {}
-        if (muteBtn != null) muteBtn.setText(fireMuted ? "Fogo: OFF" : "Fogo: ON");
-    }
 
     // ---- canal do YouTube ----
     private void openYouTube() {
@@ -583,8 +508,7 @@ public class DarkSoulsLauncherActivity extends Activity {
                     Toast.makeText(this, "Driver indisponivel: voltando ao driver do Sistema.", Toast.LENGTH_SHORT).show();
                 }
             }
-            pauseFireLoop();
-            sanitizeEnv();
+                sanitizeEnv();
             Intent i = new Intent();
             i.setClassName(getPackageName(), "android.app.NativeActivity");
             startActivity(i);
