@@ -69,6 +69,7 @@ __attribute__((weak)) int dm_overlay_fps(void) { return 0; }   // front_android.
 __attribute__((weak)) int dm_save_note(char *out, int cap) { if (cap > 0) out[0] = 0; return OVX_IDLE; }   // front_android.c: the save manager's rows
 __attribute__((weak)) int dm_save_rows(ov_srow rows[OVM_ROWS]) { (void)rows; return 0; }
 __attribute__((weak)) int dm_overlay_custom(int layout, int ctl, float *x, float *y, float *s) { (void)layout; (void)ctl; (void)x; (void)y; *s = 1; return 0; }
+__attribute__((weak)) int dm_overlay_hidden(int layout, int ctl) { (void)layout; (void)ctl; return 0; }
 __attribute__((weak)) int dm_overlay_custom_ver(void) { return 0; }
 __attribute__((weak)) float dm_overlay_opacity(void) { return 0.6f; }
 __attribute__((weak)) int dm_overlay_layout(void) { return 0; }
@@ -175,8 +176,11 @@ static uint32_t ov_layout_sprites(uint32_t w, uint32_t h) {   // places the spri
     for (int i = 0; i < SP_N; i++) g_ov.sp[i][1] = top + mr + 4;
     return (uint32_t)(2 * mr + 8);
 }
+// a hidden control's alpha in the layout editor (ov_raster sets it while drawing one, 1 elsewhere): its ring, inside and label are drawn ghosted
+static float ov_ghost = 1;
 static void ov_plot(uint8_t *px, uint32_t w, uint32_t h, int x, int y, uint8_t a, uint8_t v) {
     if (x < 0 || y < 0 || (uint32_t)x >= w || (uint32_t)y >= h) return;
+    a = (uint8_t)(a * ov_ghost + 0.5f);
     uint8_t *p = px + 4 * ((size_t)y * w + (size_t)x); if (p[3] >= a) return;
     p[0] = p[1] = p[2] = v; p[3] = a;
 }
@@ -207,7 +211,7 @@ typedef struct { uint8_t *px; uint32_t stride, x0, y0, w, h; } ov_canvas;   // a
 static void cv_blend(const ov_canvas *cv, int x, int y, const uint8_t c[4], float cov) {
     if (x < 0 || y < 0 || (uint32_t)x >= cv->w || (uint32_t)y >= cv->h || cov <= 0) return;
     uint8_t *p = cv->px + 4 * ((size_t)(cv->y0 + y) * cv->stride + cv->x0 + x);
-    float a = c[3] / 255.0f * (cov > 1 ? 1 : cov), da = p[3] / 255.0f, oa = a + da * (1 - a);
+    float a = c[3] / 255.0f * ov_ghost * (cov > 1 ? 1 : cov), da = p[3] / 255.0f, oa = a + da * (1 - a);
     if (oa <= 0) return;
     for (int k = 0; k < 3; k++) p[k] = (uint8_t)((c[k] * a + p[k] * da * (1 - a)) / oa + 0.5f);
     p[3] = (uint8_t)(oa * 255 + 0.5f);
@@ -361,15 +365,17 @@ static const char *ov_ctl_name(const ov_ctl *c) {
 }
 static void ov_edit_panel(const ov_canvas *cv, int st) {
     float tb[4], pr[4]; ov_ed_rects(tb, pr);
-    int held = (st >> 4 & 15) - 1, sel = (st >> 8 & 255) - 1;
-    static const char *const words[OVE_ALL] = {"-", "+", "Reset", "Cancel", "Save", "Discard", "Keep editing"};
+    int held = (st >> 4 & 15) - 1, sel = (st >> 8 & 255) - 1, hid = st >> 2 & 1;
+    static const char *const words[OVE_ALL] = {"-", "+", "Ocultar", "Reset", "Cancel", "Save", "Discard", "Keep editing"};
+    int hide_off = sel < 0 || sel >= OV_N || OV_CTLS[sel].kind == OV_MENU;   // Ocultar needs a chosen control, and never the menu button
     cv_rrect(cv, tb[0], tb[1], tb[0] + tb[2], tb[1] + tb[3], tb[3] * 0.14f, C_BG);
     char hint[96];
-    if (sel >= 0 && sel < OV_N) snprintf(hint, sizeof hint, "%s: drag, pinch, - +", ov_ctl_name(&OV_CTLS[sel]));   // (short: 2x-scale letters on a phone)
+    if (sel >= 0 && sel < OV_N) snprintf(hint, sizeof hint, hid ? "%s (hidden): drag, pinch, - +" : "%s: drag, pinch, - +", ov_ctl_name(&OV_CTLS[sel]));   // (short: 2x-scale letters on a phone)
     else snprintf(hint, sizeof hint, "Drag to move, pinch to resize");
     int hs = (int)fmaxf(1, roundf(tb[3] * 0.17f / 7)); while (hs > 1 && cv_text_w(hint, hs) > tb[2] * 0.94f) hs--;
     cv_text(cv, tb[0] + (tb[2] - cv_text_w(hint, hs)) / 2, tb[1] + tb[3] * 0.21f, hint, hs, sel >= 0 ? C_WHITE : C_DIM);
-    for (int i = 0; i < OVE_N; i++) { float b[4]; ov_ed_button(i, tb, b); cv_button(cv, b, words[i], i == OVE_SAVE, i == held); }
+    for (int i = 0; i < OVE_N; i++) { float b[4]; ov_ed_button(i, tb, b); cv_button(cv, b, i == OVE_HIDE && hid ? "Mostrar" : words[i], i == OVE_SAVE, i == held);
+        if (i == OVE_HIDE && hide_off) { static const uint8_t dim[4] = {14, 14, 20, 170}; cv_rrect(cv, b[0], b[1], b[0] + b[2], b[1] + b[3], b[3] * 0.28f, dim); } }   // greyed: nothing to hide
     if (!(st & 1)) return;
     cv_rrect(cv, pr[0], pr[1], pr[0] + pr[2], pr[1] + pr[3], pr[3] * 0.10f, C_BG);
     const char *q = "Discard your changes?"; int qs = (int)fmaxf(1, roundf(pr[3] * 0.13f / 7)); while (qs > 1 && cv_text_w(q, qs) > pr[2] * 0.9f) qs--;
@@ -406,29 +412,37 @@ static void ov_panel(int st) {   // the pause menu, the text entry or the layout
     else if (st & OVS_ST) ov_save_panel(&cv, st);
     else ov_menu_panel(&cv, st);
 }
-static void ov_raster(uint8_t *px, uint32_t w, uint32_t h, uint32_t sh) {
+static void ov_raster(uint8_t *px, uint32_t w, uint32_t h, uint32_t sh, int edit) {   // edit: the layout editor (a hidden control is drawn ghosted, still selectable)
     memset(px, 0, (size_t)w * (h + sh) * 4);
     int ts = h > 600 ? 3 : 2;
     for (int i = 0; i < OV_N && g_tt[g_ov.lay].ready != 1; i++) {   // (with a theme the controls are its sprites: the static layer stays empty)
         const ov_ctl *c = &OV_CTLS[i]; float b[4]; ov_box(c, (float)w, (float)h, b);
         if (c->kind == OV_MENU) continue;   // a sprite only
+        int hid = dm_overlay_hidden(g_ov.lay, i);
+        if (hid && !edit) continue;   // hidden: not drawn outside the editor
+        ov_ghost = hid ? OV_HIDE_GHOST : 1;
         if (c->kind == OV_DPAD) {
             for (int k = 0; k < 4; k++) { float ox, oy, dr; ov_dpad_dir(k, &ox, &oy, &dr); ov_circle(px, w, h, b[0] + ox * b[2], b[1] + oy * b[2], dr * b[2], 2.5f); }
-            continue;
+            ov_ghost = 1; continue;
         }
         if (ov_round(c)) ov_circle(px, w, h, b[0], b[1], b[2], c->kind == OV_BUTTON ? 2.5f : 3.0f);
         else ov_box_ring(px, w, h, c, b, 2.5f);
         int ls = ts; while (ls > 1 && 7 * ls > fminf(b[2], b[3])) ls--;   // smaller on a small button (-, +)
         if (c->label[0]) ov_text(px, w, h, b[0], b[1], c->label, ls);
+        ov_ghost = 1;
     }
     ov_canvas strip = {px, w, 0, 0, w, h + sh};
     for (int i = 0; i < SP_N; i++) {   // the sprites (the knobs are drawn only as sprites, where the finger has them)
         float x = g_ov.sp[i][0], y = g_ov.sp[i][1], r = g_ov.sp[i][2], b[4] = {x, y, r, g_ov.sp[i][3]}; if (!r) continue;
+        int hid = i < OV_N ? dm_overlay_hidden(g_ov.lay, i) : 0;
+        if (hid && !edit) continue;   // a hidden control's sprite stays empty outside the editor
+        ov_ghost = hid ? OV_HIDE_GHOST : 1;
         if (i == SP_DISC) cv_disc(&strip, x, y, r, C_WHITE);
         else if (i == SP_BLACK || i == SP_WHITE || i == SP_ACCENT) { static const uint8_t k[4] = {0, 0, 0, 255}; cv_rrect(&strip, x - r, y - r, x + r, y + r, 0, i == SP_BLACK ? k : i == SP_WHITE ? C_WHITE : C_ACCENT); }
         else if (OV_CTLS[i].kind == OV_MENU) ov_menu_icon(&strip, &OV_CTLS[i], b);
         else if (OV_CTLS[i].kind == OV_BUTTON) cv_box(&strip, &OV_CTLS[i], b, fminf(b[2], b[3]) * 0.07f, C_WHITE);   // inset as the disc's 0.93
         else ov_circle(px, w, h + sh, x, y, r, 2.5f);
+        ov_ghost = 1;
     }
 }
 typedef struct { float pos[4], uv[4], alpha; } ov_quad;
@@ -472,18 +486,21 @@ static void ov_fps(VkCommandBuffer cb, int64_t now) {
         float u = (float)(c - OV_FPS_CHARS) * ov_fps_cell(); ov_rect(cb, x, m + pad, x + cw, m + pad + ch, u, gy, u + ov_fps_cell(), gy + g_ov.gh, 1);
     }
 }
-static void ov_theme_draw(VkCommandBuffer cb, const ov_theme *t, float alpha) {   // (alpha: the player's opacity; each control at its own size factor)
+static void ov_theme_draw(VkCommandBuffer cb, const ov_theme *t, float alpha, int edit) {   // (alpha: the player's opacity; each control at its own size factor)
     float W = (float)g_sext.width, H = (float)g_sext.height, k = H / t->dh * dm_overlay_scale(), b[4]; const ov_ctl *L = OV_LAYOUTS[t->layout];
-    for (int j = 0; j < t->n; j++) if (t->sp[j].state == OVT_DECOR) { const ov_ctl *c = &L[t->sp[j].ctl]; ov_box(c, W, H, b); ov_tsp(cb, t, &t->sp[j], b[0], b[1], k * ov_cscale(c), alpha); }
+    for (int j = 0; j < t->n; j++) if (t->sp[j].state == OVT_DECOR) { const ov_ctl *c = &L[t->sp[j].ctl]; int hid = dm_overlay_hidden(t->layout, t->sp[j].ctl);
+        if (hid && !edit) continue; ov_box(c, W, H, b); ov_tsp(cb, t, &t->sp[j], b[0], b[1], k * ov_cscale(c), hid ? alpha * OV_HIDE_GHOST : alpha); }
     for (int i = 0; i < OV_N; i++) {
         const ov_ctl *c = &L[i]; if (c->kind == OV_MENU) continue;
+        int hid = dm_overlay_hidden(t->layout, i); if (hid && !edit) continue;   // hidden: not drawn outside the editor; ghosted in it
+        float ha = hid ? alpha * OV_HIDE_GHOST : alpha;
         ov_box(c, W, H, b); float kc = k * ov_cscale(c); int stick = c->kind == OV_STICK_L || c->kind == OV_STICK_R, held = c->kind != OV_DPAD && dm_overlay_pressed(i, 0) != 0;
         float kx = 0, ky = 0; if (stick) { dm_overlay_knob(c->kind == OV_STICK_R, &kx, &ky); kx *= t->travel * kc; ky *= t->travel * kc; }
         for (int j = 0; j < t->n; j++) {
             const ov_tsprite *s = &t->sp[j]; if (s->ctl != i || s->state == OVT_DECOR) continue;
-            if (s->state == OVT_KNOB) { ov_tsp(cb, t, s, b[0] + kx, b[1] + ky, kc, alpha); continue; }
+            if (s->state == OVT_KNOB) { ov_tsp(cb, t, s, b[0] + kx, b[1] + ky, kc, ha); continue; }
             int on = c->kind == OV_DPAD ? s->dir >= 0 && dm_overlay_pressed(i, OV_DPAD_BITS[s->dir]) != 0 : held;
-            if (s->state == (on ? OVT_HELD : OVT_IDLE)) ov_tsp(cb, t, s, b[0], b[1], kc, alpha);
+            if (s->state == (on ? OVT_HELD : OVT_IDLE)) ov_tsp(cb, t, s, b[0], b[1], kc, ha);
         }
     }
 }
@@ -513,19 +530,20 @@ static void ov_render(VkCommandBuffer cb, int mode, int menu, int fps) {
     const ov_theme *th = g_tt[g_ov.lay].ready == 1 ? g_tt[g_ov.lay].t : NULL; int tbound = 0;   // (the theme's texture bound)
     if ((menu < 0 || edit) && mode == 1 && th) {
         vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, g_ov.layout, 0, 1, &g_tt[g_ov.lay].set, 0, NULL); tbound = 1;
-        ov_theme_draw(cb, th, op);
+        ov_theme_draw(cb, th, op, edit);
     } else if ((menu < 0 || edit) && mode == 1) {   // without a theme: the outlines (their opacity: 60% looks as they always did), the knobs and the glows
         float fo = fminf(1, op / 0.6f);
         ov_rect(cb, 0, 0, W, H, 0, 0, (float)g_ov.w, (float)g_ov.h, fo);
         for (int i = 0; i < OV_N; i++) { const ov_ctl *c = &OV_CTLS[i]; float b[4]; ov_box(c, W, H, b);
+            int hid = dm_overlay_hidden(g_ov.lay, i); if (hid && !edit) continue; float ha = hid ? OV_HIDE_GHOST : 1;   // a hidden stick's knob is ghosted in the editor
             if (c->kind == OV_STICK_L || c->kind == OV_STICK_R) {
                 float dx, dy; dm_overlay_knob(c->kind == OV_STICK_R, &dx, &dy); float travel = b[2] * (1 - OV_KNOB);   // the knob's edge reaches the ring
-                ov_sprite(cb, i, b[0] + dx * travel, b[1] + dy * travel, b[2] * OV_KNOB, fo);
+                ov_sprite(cb, i, b[0] + dx * travel, b[1] + dy * travel, b[2] * OV_KNOB, fo * ha);
             } else if (c->kind == OV_BUTTON) { float g = ov_glow(dm_overlay_pressed(i, 0), now); if (g <= 0) continue;
-                if (!ov_round(c)) ov_sprite(cb, i, b[0], b[1], b[2], g); else ov_sprite(cb, SP_DISC, b[0], b[1], b[2] * 0.93f, g); }
+                if (!ov_round(c)) ov_sprite(cb, i, b[0], b[1], b[2], g * ha); else ov_sprite(cb, SP_DISC, b[0], b[1], b[2] * 0.93f, g * ha); }
             else if (c->kind == OV_DPAD) for (int k = 0; k < 4; k++) {
                 float g = ov_glow(dm_overlay_pressed(i, OV_DPAD_BITS[k]), now), ox, oy, dr; if (g <= 0) continue;
-                ov_dpad_dir(k, &ox, &oy, &dr); ov_sprite(cb, SP_DISC, b[0] + ox * b[2], b[1] + oy * b[2], dr * b[2] * 0.93f, g);
+                ov_dpad_dir(k, &ox, &oy, &dr); ov_sprite(cb, SP_DISC, b[0] + ox * b[2], b[1] + oy * b[2], dr * b[2] * 0.93f, g * ha);
             }
         }
     }
@@ -588,6 +606,7 @@ static void ov_theme_upload(VkCommandBuffer cb, uint32_t k, int lay) {
 }
 static int overlay_ready(VkCommandBuffer cb, uint32_t k, int menu) {   // k: this present's slot (its fence is not signalled yet)
     uint32_t w = g_sext.width / 2, h = g_sext.height / 2; int lay = dm_overlay_layout();
+    int edit = menu >= 0 && !(menu >> 16 & 1) && (menu & OVE_ST);   // the layout editor: a hidden control is drawn ghosted, still selectable
     if (!g_ov.dsl) {
         VkDescriptorSetLayoutBinding b = {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, NULL};
         VkDescriptorSetLayoutCreateInfo li = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, NULL, 0, 1, &b}; VKCHK(vkCreateDescriptorSetLayout(V.dev, &li, NULL, &g_ov.dsl));
@@ -645,7 +664,7 @@ static int overlay_ready(VkCommandBuffer cb, uint32_t k, int menu) {   // k: thi
         VkMemoryAllocateInfo bi = {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, NULL, bq.size, vk_mem_type(bq.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0)};
         VKCHK(vkAllocateMemory(V.dev, &bi, NULL, &g_ov.upm)); VKCHK(vkBindBufferMemory(V.dev, g_ov.up, g_ov.upm, 0));
         void *px; VKCHK(vkMapMemory(V.dev, g_ov.upm, 0, VK_WHOLE_SIZE, 0, &px)); g_ov.px = px;
-        g_ov.w = w; g_ov.h = h; g_ov.sh = sh; ov_raster(g_ov.px, w, h, sh); memset(g_ov.px + (size_t)w * (h + sh) * 4, 0, (size_t)w * (g_ov.ph + g_ov.gh) * 4); ov_fps_glyphs();
+        g_ov.w = w; g_ov.h = h; g_ov.sh = sh; ov_raster(g_ov.px, w, h, sh, edit); memset(g_ov.px + (size_t)w * (h + sh) * 4, 0, (size_t)w * (g_ov.ph + g_ov.gh) * 4); ov_fps_glyphs();
         VkDescriptorImageInfo ii = {g_ov.samp, g_ov.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         VkWriteDescriptorSet wr = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, NULL, g_ov.set, 0, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &ii};
         vkUpdateDescriptorSets(V.dev, 1, &wr, 0, NULL);

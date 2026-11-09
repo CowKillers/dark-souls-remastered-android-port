@@ -7,6 +7,7 @@
 set -e
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 JDK="${JDK:-/usr/lib/jvm/java-17-openjdk-amd64}"
+[ -x "$JDK/bin/javac" ] || JDK="$HOME/jdk-dl/jdk-17.0.20.1+1"
 SDK="${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}"
 BT="$SDK/build-tools/36.1.0"
 ANDROID_JAR="$SDK/platforms/android-36/android.jar"
@@ -73,9 +74,9 @@ python3 "$ROOT/realign.py" "$BUILD/injected.apk" "$BUILD/aligned.apk"
 
 echo "[6/6] sign (apksigner, keystore propria) + gates"
 [ -n "$KEYSTORE" ] || { echo "KEYSTORE nao definido (veja BUILD.md)"; exit 1; }
-"$BT/apksigner" sign --ks "$KEYSTORE" --ks-key-alias "${KEY_ALIAS:-androiddebugkey}" --ks-pass "pass:${KEYSTORE_PASS:-android}" --key-pass "pass:${KEYSTORE_PASS:-android}" --out "$ROOT/DarkSoulsRemastered-launcher-v6.apk" "$BUILD/aligned.apk"
-python3 "$ROOT/check.py" "$ROOT/DarkSoulsRemastered-launcher-v6.apk"
-"$BT/aapt2" dump badging "$ROOT/DarkSoulsRemastered-launcher-v6.apk" | grep -E "package:|launchable-activity:|native-code:|uses-permission"
-"$BT/apksigner" verify --print-certs "$ROOT/DarkSoulsRemastered-launcher-v6.apk"
-ls -l "$ROOT/DarkSoulsRemastered-launcher-v6.apk"
-sha256sum "$ROOT/DarkSoulsRemastered-launcher-v6.apk"
+"$BT/apksigner" sign --ks "$KEYSTORE" --ks-key-alias "${KEY_ALIAS:-androiddebugkey}" --ks-pass "pass:${KEYSTORE_PASS:-android}" --key-pass "pass:${KEYSTORE_PASS:-android}" --out "$ROOT/DarkSoulsRemastered-launcher-v7.apk" "$BUILD/aligned.apk"
+python3 "$ROOT/check.py" "$ROOT/DarkSoulsRemastered-launcher-v7.apk"
+"$BT/aapt2" dump badging "$ROOT/DarkSoulsRemastered-launcher-v7.apk" | grep -E "package:|launchable-activity:|native-code:|uses-permission"
+"$BT/apksigner" verify --print-certs "$ROOT/DarkSoulsRemastered-launcher-v7.apk"
+ls -l "$ROOT/DarkSoulsRemastered-launcher-v7.apk"
+sha256sum "$ROOT/DarkSoulsRemastered-launcher-v7.apk"

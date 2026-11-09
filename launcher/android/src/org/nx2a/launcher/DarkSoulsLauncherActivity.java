@@ -9,6 +9,14 @@ import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
+import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.RadialGradient;
+import android.graphics.Shader;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -86,6 +94,14 @@ public class DarkSoulsLauncherActivity extends Activity {
     private String importedSlug = "";
     private String importedSoName = "";
     private Button configDriversBtn;
+    // ---- v7: fogo, brasas, YouTube ----
+    private MediaPlayer firePlayer;
+    private boolean fireMuted = false;
+    private EmberView emberView;
+    private ObjectAnimator ytPulseX;
+    private ObjectAnimator ytPulseY;
+    private Button muteBtn;
+    private LinearLayout ytPill;
     private Typeface gameFont = null;
 
     private Typeface gameTypeface() {
@@ -123,9 +139,9 @@ public class DarkSoulsLauncherActivity extends Activity {
         setImmersive();
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(0xFF050505);
-        // Fundo NOVO v9: imagem limpa enviada (1210x544, Ryu com
-        // katana, sem textos/paineis), cobrindo o launcher inteiro,
-        // fixa, CENTER_CROP. Nada de foto mockup antiga, nada de rolagem.
+        // Arte da fogueira enviada pelo usuario (Firelink Shrine, chama a direita):
+        // tela cheia, CENTER_CROP. A abinha fica na esquerda e o titulo no
+        // topo a direita, para nunca cobrir a chama.
         ImageView art = new ImageView(this);
         int artId = getResources().getIdentifier("launcher_art", "drawable", getPackageName());
         if (artId != 0) {
@@ -134,60 +150,147 @@ public class DarkSoulsLauncherActivity extends Activity {
         }
         root.addView(art, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        // Velo LEVE sobre a foto limpa: so o suficiente para titulo
-        // e botoes ficarem legiveis, sem esconder a imagem.
         View scrim = new View(this);
-        scrim.setBackgroundColor(0x33000000);
+        scrim.setBackgroundColor(0x22000000);
         root.addView(scrim, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
-        LinearLayout col = new LinearLayout(this);
-        col.setOrientation(LinearLayout.VERTICAL);
-        col.setPadding(dp(24), dp(14), dp(24), dp(12));
-        col.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = new TextView(this);
-        title.setText("DARK SOULS");
-        title.setTextSize(30);
-        applyGameFont(title, 0.08f);
-        title.setTextColor(Color.WHITE);
-        title.setShadowLayer(dp(4), 0, dp(2), 0xFF000000);
-        col.addView(title);
-        TextView sub = new TextView(this);
-        sub.setText("REMASTERED  •  Android Port");
-        sub.setTextSize(14);
-        applyGameFont(sub, 0.05f);
-        sub.setTextColor(0xFFC9A227);
-        sub.setShadowLayer(dp(3), 0, dp(2), 0xFF000000);
-        col.addView(sub);
+        // Brasas subindo + brilho da fogueira tremeluzindo (por cima da arte).
+        emberView = new EmberView(this);
+        root.addView(emberView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        // ---- abinha vertical na esquerda ----
+        FrameLayout tabWrap = new FrameLayout(this);
+        FrameLayout.LayoutParams tabLp = new FrameLayout.LayoutParams(
+                dp(190), FrameLayout.LayoutParams.MATCH_PARENT);
+        tabLp.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
+        LinearLayout tab = new LinearLayout(this);
+        tab.setOrientation(LinearLayout.VERTICAL);
+        tab.setBackgroundColor(0xE6121212);
+        tab.setPadding(dp(12), dp(14), dp(12), dp(12));
+        TextView tabTitle = new TextView(this);
+        tabTitle.setText("DARK SOULS");
+        tabTitle.setTextSize(15);
+        applyGameFont(tabTitle, 0.08f);
+        tabTitle.setTextColor(0xFFC9A227);
+        tab.addView(tabTitle);
+        View divider = new View(this);
+        divider.setBackgroundColor(0xFFC9A227);
+        LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(2));
+        divLp.topMargin = dp(6);
+        divLp.bottomMargin = dp(10);
+        tab.addView(divider, divLp);
 
         playBtn = makeMenuButton("Jogar", true);
         playBtn.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { playGame(); }
         });
-        col.addView(playBtn, menuParams());
-        // v11: tela principal LIMPA - so 3 botoes, mais nada.
-        // Jogar (largura total, ja adicionado acima), Importar jogo
-        // e Configuracao. Controles, Sobre, Ver log e Importar driver
-        // nao estao mais aqui: tudo fica dentro da Configuracao.
-        col.addView(makeMenuButton("Importar jogo", false, new View.OnClickListener() {
+        tab.addView(playBtn, menuParams());
+        tab.addView(makeMenuButton("Importar jogo", false, new View.OnClickListener() {
             @Override public void onClick(View v) { showImportDialog(); }
         }), menuParams());
-        col.addView(makeMenuButton("Configura\u00e7\u00e3o", false, new View.OnClickListener() {
+        tab.addView(makeMenuButton("Configura\u00e7\u00e3o", false, new View.OnClickListener() {
             @Override public void onClick(View v) { showConfigDialog(); }
+        }), menuParams());
+        tab.addView(makeMenuButton("Drivers de GPU", false, new View.OnClickListener() {
+            @Override public void onClick(View v) { showDriversDialog(); }
+        }), menuParams());
+        tab.addView(makeMenuButton("Sobre", false, new View.OnClickListener() {
+            @Override public void onClick(View v) { showSobreDialog(); }
         }), menuParams());
 
         statusText = new TextView(this);
-        statusText.setTextSize(12);
+        statusText.setTextSize(11);
         statusText.setTextColor(0xFFDDDDDD);
         statusText.setShadowLayer(dp(3), 0, dp(2), 0xFF000000);
-        statusText.setPadding(0, dp(8), 0, 0);
-        col.addView(statusText);
+        statusText.setPadding(0, dp(10), 0, 0);
+        tab.addView(statusText);
 
-        // Sem rolagem: a coluna inteira e o conteudo da tela, fixa.
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
-        root.addView(col, lp);
+        tabWrap.addView(tab, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        View goldEdge = new View(this);
+        goldEdge.setBackgroundColor(0xFFC9A227);
+        FrameLayout.LayoutParams edgeLp = new FrameLayout.LayoutParams(
+                dp(2), FrameLayout.LayoutParams.MATCH_PARENT);
+        edgeLp.gravity = Gravity.END;
+        tabWrap.addView(goldEdge, edgeLp);
+        tabWrap.setAlpha(0f);
+        root.addView(tabWrap, tabLp);
+
+        // ---- titulo no topo a direita (sobre a pedra escura, fora da chama) ----
+        LinearLayout titleBlock = new LinearLayout(this);
+        titleBlock.setOrientation(LinearLayout.VERTICAL);
+        titleBlock.setGravity(Gravity.END);
+        FrameLayout.LayoutParams titleLp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        titleLp.gravity = Gravity.TOP | Gravity.END;
+        titleLp.topMargin = dp(52);
+        titleLp.rightMargin = dp(16);
+        TextView title = new TextView(this);
+        title.setText("DARK SOULS");
+        title.setTextSize(32);
+        applyGameFont(title, 0.08f);
+        title.setTextColor(Color.WHITE);
+        title.setGravity(Gravity.END);
+        title.setShadowLayer(dp(4), 0, dp(2), 0xFF000000);
+        titleBlock.addView(title);
+        TextView sub = new TextView(this);
+        sub.setText("REMASTERED  \u2022  Android Port");
+        sub.setTextSize(14);
+        applyGameFont(sub, 0.05f);
+        sub.setTextColor(0xFFC9A227);
+        sub.setGravity(Gravity.END);
+        sub.setShadowLayer(dp(3), 0, dp(2), 0xFF000000);
+        titleBlock.addView(sub);
+        titleBlock.setAlpha(0f);
+        root.addView(titleBlock, titleLp);
+
+        // ---- pilula do YouTube: pequena, no topo a direita, com pulso sutil ----
+        ytPill = makeYtPill();
+        FrameLayout.LayoutParams ytLp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        ytLp.gravity = Gravity.TOP | Gravity.END;
+        ytLp.topMargin = dp(10);
+        ytLp.rightMargin = dp(12);
+        root.addView(ytPill, ytLp);
+
+        // ---- mudo do fogo, canto inferior direito ----
+        muteBtn = new Button(this);
+        muteBtn.setText("Fogo: ON");
+        muteBtn.setTextSize(12);
+        applyGameFont(muteBtn, 0.04f);
+        muteBtn.setTextColor(Color.WHITE);
+        GradientDrawable md = new GradientDrawable();
+        md.setColor(0xCC141414);
+        md.setCornerRadius(dp(12));
+        md.setStroke(dp(2), 0xFF8C6A1F);
+        muteBtn.setBackground(md);
+        muteBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { toggleFireMute(); }
+        });
+        FrameLayout.LayoutParams muteLp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        muteLp.gravity = Gravity.BOTTOM | Gravity.END;
+        muteLp.bottomMargin = dp(10);
+        muteLp.rightMargin = dp(12);
+        root.addView(muteBtn, muteLp);
+
         setContentView(root);
+        // Fade-in do titulo e da abinha ao abrir.
+        titleBlock.animate().alpha(1f).setDuration(900).start();
+        tabWrap.animate().alpha(1f).setDuration(900).setStartDelay(150).start();
+        // Pulso sutil da pilula do canal (chama o olho sem ser gigante).
+        ytPulseX = ObjectAnimator.ofFloat(ytPill, "scaleX", 1f, 1.06f, 1f);
+        ytPulseX.setDuration(1600);
+        ytPulseX.setRepeatCount(ValueAnimator.INFINITE);
+        ytPulseX.start();
+        ytPulseY = ObjectAnimator.ofFloat(ytPill, "scaleY", 1f, 1.06f, 1f);
+        ytPulseY.setDuration(1600);
+        ytPulseY.setRepeatCount(ValueAnimator.INFINITE);
+        ytPulseY.start();
+        startFireLoop();
         loadSettings();
         loadDriverChoice();
         refreshPlay();
@@ -196,9 +299,212 @@ public class DarkSoulsLauncherActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (emberView != null) emberView.setRunning(true);
+        resumeFireLoop();
         loadSettings();
         loadDriverChoice();
         refreshPlay();
+    }
+
+    @Override
+    protected void onPause() {
+        if (emberView != null) emberView.setRunning(false);
+        pauseFireLoop();
+        super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (ytPulseX != null) ytPulseX.cancel();
+        if (ytPulseY != null) ytPulseY.cancel();
+        stopFireLoop();
+        super.onDestroy();
+    }
+
+    // ---- fogo: loop de crepitacao (res/raw/fire_loop.mp3) ----
+    private void startFireLoop() {
+        try {
+            if (firePlayer != null) return;
+            int id = getResources().getIdentifier("fire_loop", "raw", getPackageName());
+            if (id == 0) return;
+            firePlayer = MediaPlayer.create(this, id);
+            if (firePlayer == null) return;
+            firePlayer.setLooping(true);
+            firePlayer.setVolume(fireMuted ? 0f : 0.35f, fireMuted ? 0f : 0.35f);
+            firePlayer.start();
+        } catch (Exception ignored) {
+            firePlayer = null; // o launcher nunca trava por causa do som
+        }
+    }
+
+    private void pauseFireLoop() {
+        try {
+            if (firePlayer != null && firePlayer.isPlaying()) firePlayer.pause();
+        } catch (Exception ignored) {}
+    }
+
+    private void resumeFireLoop() {
+        try {
+            if (firePlayer != null && !fireMuted && !firePlayer.isPlaying()) firePlayer.start();
+        } catch (Exception ignored) {}
+    }
+
+    private void stopFireLoop() {
+        try {
+            if (firePlayer != null) { firePlayer.stop(); firePlayer.release(); }
+        } catch (Exception ignored) {
+        } finally {
+            firePlayer = null;
+        }
+    }
+
+    private void toggleFireMute() {
+        fireMuted = !fireMuted;
+        try {
+            if (firePlayer != null) {
+                firePlayer.setVolume(fireMuted ? 0f : 0.35f, fireMuted ? 0f : 0.35f);
+                if (!fireMuted && !firePlayer.isPlaying()) firePlayer.start();
+            }
+        } catch (Exception ignored) {}
+        if (muteBtn != null) muteBtn.setText(fireMuted ? "Fogo: OFF" : "Fogo: ON");
+    }
+
+    // ---- canal do YouTube ----
+    private void openYouTube() {
+        try {
+            Intent i = new Intent(Intent.ACTION_VIEW,
+                    Uri.parse("https://youtube.com/@emuucheck"));
+            startActivity(i);
+        } catch (Exception e) {
+            Toast.makeText(this, "Nao foi possivel abrir o YouTube.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private LinearLayout makeYtPill() {
+        LinearLayout pill = new LinearLayout(this);
+        pill.setOrientation(LinearLayout.HORIZONTAL);
+        pill.setGravity(Gravity.CENTER_VERTICAL);
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(0xFFE62117);
+        d.setCornerRadius(dp(16));
+        d.setStroke(dp(2), 0xFFFFFFFF);
+        pill.setBackground(d);
+        pill.setPadding(dp(8), dp(4), dp(10), dp(4));
+        ImageView play = new ImageView(this);
+        int playId = getResources().getIdentifier("ic_yt_play", "drawable", getPackageName());
+        if (playId != 0) play.setImageResource(playId);
+        LinearLayout.LayoutParams playLp = new LinearLayout.LayoutParams(dp(18), dp(18));
+        playLp.rightMargin = dp(5);
+        pill.addView(play, playLp);
+        TextView label = new TextView(this);
+        label.setText("@emuucheck");
+        label.setTextSize(12);
+        applyGameFont(label, 0.02f);
+        label.setTextColor(Color.WHITE);
+        pill.addView(label);
+        pill.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { openYouTube(); }
+        });
+        return pill;
+    }
+
+    // Brasas subindo da fogueira + brilho tremeluzindo. ~30 fps, so roda
+    // com a activity visivel (setRunning em onResume/onPause).
+    private static class EmberView extends View {
+        private static class Ember {
+            float x, y, speed, sway, phase, size, alpha;
+            int color;
+        }
+        private final java.util.List<Ember> embers = new java.util.ArrayList<Ember>();
+        private final Paint paint = new Paint();
+        private final Paint glowPaint = new Paint();
+        private final java.util.Random rnd = new java.util.Random(20261109);
+        private final int[] emberColors = {0xFFFF8C1A, 0xFFFFB347, 0xFFFF5A00, 0xFFFFD27A};
+        private final float density;
+        private boolean running = false;
+        private long startMs = System.currentTimeMillis();
+        private RadialGradient glowGrad;
+        private float glowCx, glowCy, glowR;
+        private final Runnable tick = new Runnable() {
+            @Override public void run() {
+                if (!running) return;
+                invalidate();
+                postDelayed(this, 33);
+            }
+        };
+
+        EmberView(Context ctx) {
+            super(ctx);
+            density = ctx.getResources().getDisplayMetrics().density;
+            paint.setAntiAlias(true);
+            glowPaint.setAntiAlias(true);
+        }
+
+        void setRunning(boolean r) {
+            if (r == running) return;
+            running = r;
+            if (r) {
+                startMs = System.currentTimeMillis();
+                post(tick);
+            } else {
+                removeCallbacks(tick);
+            }
+        }
+
+        @Override
+        protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+            super.onSizeChanged(w, h, oldw, oldh);
+            if (w <= 0 || h <= 0) return;
+            glowCx = 0.64f * w;
+            glowCy = 0.42f * h;
+            glowR = 0.38f * h;
+            glowGrad = new RadialGradient(glowCx, glowCy, glowR,
+                    0x66FF7A1A, 0x00FF7A1A, Shader.TileMode.CLAMP);
+            glowPaint.setShader(glowGrad);
+            if (embers.isEmpty()) {
+                for (int i = 0; i < 24; i++) {
+                    Ember e = new Ember();
+                    resetEmber(e, w, h, true);
+                    embers.add(e);
+                }
+            }
+        }
+
+        private void resetEmber(Ember e, int w, int h, boolean anywhere) {
+            e.x = (0.55f + rnd.nextFloat() * 0.28f) * w;
+            e.y = anywhere ? rnd.nextFloat() * h : h * (0.92f + rnd.nextFloat() * 0.08f);
+            e.speed = 0.03f + rnd.nextFloat() * 0.05f; // fracao da altura por segundo
+            e.sway = 0.4f + rnd.nextFloat() * 1.2f;
+            e.phase = rnd.nextFloat() * 6.28f;
+            e.size = (2f + rnd.nextFloat() * 3f) * density;
+            e.alpha = 0.4f + rnd.nextFloat() * 0.55f;
+            e.color = emberColors[rnd.nextInt(emberColors.length)];
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            int w = getWidth(), h = getHeight();
+            if (w <= 0 || h <= 0 || glowGrad == null) return;
+            float t = (System.currentTimeMillis() - startMs) / 1000f;
+            float flick = 0.55f + 0.25f * (float) Math.sin(t * 2.1f)
+                    + 0.2f * (float) Math.sin(t * 5.3f + 1.7f);
+            if (flick < 0.15f) flick = 0.15f;
+            if (flick > 1f) flick = 1f;
+            glowPaint.setAlpha((int) (flick * 160));
+            canvas.drawCircle(glowCx, glowCy, glowR, glowPaint);
+            for (Ember e : embers) {
+                e.y -= e.speed * h * 0.033f;
+                if (e.y < -10) resetEmber(e, w, h, false);
+                float x = e.x + (float) Math.sin(t * 1.3f + e.phase) * e.sway * 8f;
+                float a = e.alpha * (0.7f + 0.3f * (float) Math.sin(t * 7f + e.phase * 3f));
+                if (a < 0.05f) a = 0.05f;
+                if (a > 1f) a = 1f;
+                paint.setColor(e.color);
+                paint.setAlpha((int) (a * 255));
+                canvas.drawCircle(x, e.y, e.size, paint);
+            }
+        }
     }
 
     private LinearLayout.LayoutParams menuParams() {
@@ -277,6 +583,7 @@ public class DarkSoulsLauncherActivity extends Activity {
                     Toast.makeText(this, "Driver indisponivel: voltando ao driver do Sistema.", Toast.LENGTH_SHORT).show();
                 }
             }
+            pauseFireLoop();
             sanitizeEnv();
             Intent i = new Intent();
             i.setClassName(getPackageName(), "android.app.NativeActivity");
@@ -962,8 +1269,11 @@ public class DarkSoulsLauncherActivity extends Activity {
     }
 
     private void showControlesDialog() {
-        String text = "Controles no jogo: o gamepad na tela e o mapeamento seguem o tema original do port.\n"
-                + "Editar layout: no jogo, pausa > Gamepad.\n"
+        String text = "Editar layout no jogo: pausa > Gamepad > Editar layout.\n"
+                + "Arrastar move o botao; pinca ou - / + muda o tamanho (0,5x a 2x).\n"
+                + "Ocultar esconde o botao escolhido (o botao de pausa nunca some);\n"
+                + "para mostrar de novo, abra o editor: ele aparece apagado.\n"
+                + "Salvar trava o layout; Resetar volta tudo ao padrao.\n"
                 + "O launcher nao edita o layout direto.";
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
@@ -1033,6 +1343,7 @@ public class DarkSoulsLauncherActivity extends Activity {
                 + "Host com adrenotools. DM_VK_DRIVER so com driver escolhido.\n"
                 + "Port nx2android, uso pessoal, com o dump proprio.");
         col.addView(info);
+        col.addView(makeYtPill(), spacedParams());
         TextView logTitle = new TextView(this);
         logTitle.setTextSize(13);
         logTitle.setTextColor(0xFFC9A227);

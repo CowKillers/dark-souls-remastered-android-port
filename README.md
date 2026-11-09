@@ -9,7 +9,9 @@ Uso pessoal.
 - Jogo abre, passa por menu e chega ao gameplay, com saves funcionando.
 - Launcher próprio: Jogar, Importar dados, Configurações
   (Handheld/Docked, FPS, opacidade, overlay, vibração), Sobre com
-  marcador de versão e fim do log.
+  marcador de versão e fim do log. Desde a v7: abinha lateral,
+  arte de fundo, som de fogueira em loop (com mudo), botão do
+  canal no YouTube e editor de layout com Ocultar por botão.
 - Drivers de GPU: sistema, Turnip a7xx e a8xx empacotados, ou driver
   importado (`.so`/`.zip`) via adrenotools.
 - Controle físico (ex.: Gamesir-X3 via USB-C) e overlay de toque na tela.
@@ -20,6 +22,8 @@ Uso pessoal.
 - Arquivos do jogo: dump, RomFS, `shaders.dmsv`, data pack, APKs prontos.
 - Chaves: `prod.keys`, `title.keys` ou qualquer chave de assinatura.
 - Arte oficial do jogo: o ícone é um placeholder neutro, troque pelo seu.
+  O `launcher_art.png` aqui também é um placeholder neutro (gradiente
+  escuro): troque pela sua própria arte de fundo antes de compilar.
 
 Traga seu próprio dump e importe pelo launcher. Assine com sua própria
 keystore (veja `BUILD.md`).
@@ -27,8 +31,8 @@ keystore (veja `BUILD.md`).
 ## Como compilar
 
 Veja `BUILD.md`. Resumo: compile o host (`host/`), depois o launcher
-(`launcher/`). A próxima build precisa de `versionCode` maior que 5:
-este repo já marca 6. Trocar a chave de assinatura exige desinstalação
+(`launcher/`). A próxima build precisa de `versionCode` maior que 7:
+este repo já marca 7. Trocar a chave de assinatura exige desinstalação
 limpa com backup de `files/` antes.
 
 ## Problemas conhecidos
@@ -42,3 +46,8 @@ limpa com backup de `files/` antes.
 - fix v4: variante de fragment shader com descarte GREATER (efeito na
   grama ainda não confirmado no aparelho).
 - diag v5: repack do host da diag com `versionCode` maior, para o teste A/B.
+- v7: launcher novo (abinha na esquerda, arte da fogueira, som de
+  fogueira em loop com mudo, botão do YouTube @emuucheck, brasas) +
+  Ocultar por botão no editor de layout do jogo (pausa > Gamepad >
+  Editar layout; o botão de pausa nunca some). Host mantém o fix
+  do alpha test (GREATER) e o patch adrenotools.

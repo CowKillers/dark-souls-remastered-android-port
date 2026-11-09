@@ -60,15 +60,21 @@ def main():
                   "assets/overlay/tablet.png"):
         if asset not in offs:
             print("FAIL: tema ausente: %s" % asset); ok = False
+    names = z.namelist()
+    if not any("launcher_art.png" in n for n in names):
+        print("FAIL: launcher_art.png ausente"); ok = False
+    if not any("fire_loop.mp3" in n for n in names):
+        print("FAIL: fire_loop.mp3 ausente"); ok = False
     if "classes.dex" not in offs:
         print("FAIL: classes.dex ausente"); ok = False
     elif offs["classes.dex"][1] % 4 != 0:
         print("FAIL: classes.dex desalinhado (mod 4)"); ok = False
     dex = z.read("classes.dex")
-    for marker in (b"DarkSoulsLauncherActivity", b"DM_VK_DRIVER", b"turnip-a7xx", b"turnip-a8xx", b"gpu_drivers"):
+    for marker in (b"DarkSoulsLauncherActivity", b"DM_VK_DRIVER", b"turnip-a7xx", b"turnip-a8xx", b"gpu_drivers",
+                   b"youtube.com/@emuucheck", b"fire_loop", b"EmberView", b"launcher_art"):
         if marker not in dex:
             print("FAIL: dex sem marcador %s" % marker); ok = False
-    if b"NinjaGaiden" in dex or b"emuucheck" in dex or b"turnip-8g2" in dex:
+    if b"NinjaGaiden" in dex or b"turnip-8g2" in dex:
         print("FAIL: dex com resto de outro jogo"); ok = False
     print("CHECK: %s" % ("OK" if ok else "FAIL"))
     return 0 if ok else 1

@@ -28,6 +28,7 @@ int64_t dm_overlay_pressed(int ctl, uint64_t bit);   // CLOCK_MONOTONIC ns of th
 // fractions of the window's width and height and its size factor, per layout, kept in settings.txt. 1 and x, y when the player moved the control, 0 when it
 // is where the layout puts it; *s is its size factor either way (1 = the layout's)
 int dm_overlay_custom(int layout, int ctl, float *x, float *y, float *s);
+int dm_overlay_hidden(int layout, int ctl);   // the control is hidden (the editor's own while it is open): not drawn, and no touch outside the editor
 int dm_overlay_custom_ver(void);   // counts the changes (the theme-less drawing is rasterized again)
 float dm_overlay_opacity(void);    // the gamepad's opacity, 0.2..0.8 (the menu's Opacity slider)
 static inline int ov_index(const ov_ctl *c, int *layout) { int k = (int)(c - &OV_LAYOUTS[0][0]); *layout = k / OV_N; return k % OV_N; }   // c: in OV_LAYOUTS
@@ -119,13 +120,16 @@ static inline int ov_menu_track_value(float x, const float p[4], int row) {   //
 }
 
 // ---- the layout editor (front_android.c, from the menu's Edit layout): the game stays held; every control (the menu button too) can be dragged, and
-// resized by a pinch or the toolbar's - and + (the tapped control, or all of them when none is). A toolbar under the top edge: its hint line and buttons;
-// Cancel with changes asks first, in a prompt in the middle. Both are drawn into the menu panel's raster (gfx_vk_present.c ov_edit_panel) ----
-enum { OVE_SMALLER, OVE_BIGGER, OVE_RESET, OVE_CANCEL, OVE_SAVE, OVE_N, OVE_DISCARD = OVE_N, OVE_KEEP, OVE_ALL };
-// the editor's state in dm_menu_state: bit 17, bit 0 the prompt is open, bit 1 something changed, bits 4..7 the button held + 1, bits 8..15 the chosen control + 1
+// resized by a pinch or the toolbar's - and + (the tapped control, or all of them when none is); Ocultar hides the chosen control (the menu button never:
+// it opens the menu), and a hidden one is drawn ghosted in the editor so it can be chosen and shown again. A toolbar under the top edge: its hint line
+// and buttons; Cancel with changes asks first, in a prompt in the middle. Both are drawn into the menu panel's raster (gfx_vk_present.c ov_edit_panel) ----
+enum { OVE_SMALLER, OVE_BIGGER, OVE_HIDE, OVE_RESET, OVE_CANCEL, OVE_SAVE, OVE_N, OVE_DISCARD = OVE_N, OVE_KEEP, OVE_ALL };
+// the editor's state in dm_menu_state: bit 17, bit 0 the prompt is open, bit 1 something changed, bit 2 the chosen control is hidden, bits 4..7 the button
+// held + 1, bits 8..15 the chosen control + 1
 #define OVE_ST 0x20000
 #define OVE_SCALE_MIN 0.5f   // a control's size factor
 #define OVE_SCALE_MAX 2.0f
+#define OV_HIDE_GHOST 0.35f   // a hidden control's opacity in the editor
 static inline void ov_ed_rect(float W, float H, float r[4]) {   // the toolbar, in window pixels: under the top edge, in the middle (below the menu button's place)
     float s = ov_menu_scale(); r[2] = fminf(0.85f * H * s, W * 0.96f); r[3] = 0.20f * H * s; r[0] = (W - r[2]) / 2; r[1] = 0.13f * H;
 }
@@ -133,7 +137,7 @@ static inline void ov_ed_prompt_rect(float W, float H, float r[4]) {   // the di
     float s = ov_menu_scale(); r[2] = fminf(0.75f * H * s, W * 0.9f); r[3] = 0.30f * H * s; r[0] = (W - r[2]) / 2; r[1] = (H - r[3]) / 2;
 }
 static inline void ov_ed_button(int i, const float p[4], float b[4]) {   // button i in its panel p (the toolbar's, or the prompt's for OVE_DISCARD, OVE_KEEP)
-    static const float x0[OVE_ALL] = {0.15f, 1.30f, 2.80f, 5.25f, 7.70f, 0.50f, 5.20f}, w[OVE_ALL] = {1.0f, 1.0f, 2.30f, 2.30f, 2.15f, 4.30f, 4.30f};
+    static const float x0[OVE_ALL] = {0.10f, 1.05f, 2.00f, 4.15f, 6.15f, 8.10f, 0.50f, 5.20f}, w[OVE_ALL] = {0.85f, 0.85f, 2.05f, 1.90f, 1.85f, 1.80f, 4.30f, 4.30f};
     float u = p[2] / 10; b[0] = p[0] + x0[i] * u; b[2] = w[i] * u;
     if (i < OVE_N) { b[1] = p[1] + p[3] * 0.42f; b[3] = p[3] * 0.52f; } else { b[1] = p[1] + p[3] * 0.50f; b[3] = p[3] * 0.36f; }
 }
