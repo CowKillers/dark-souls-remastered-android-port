@@ -64,9 +64,11 @@ import java.util.zip.ZipInputStream;
  *  - Jogar: android.app.NativeActivity neste mesmo pacote. So com
  *    RomFS/ e shaders.dmsv em getExternalFilesDir(); sem dados,
  *    Jogar abre o Importar.
- *  - Configuracoes: SOMENTE as chaves que o host le em settings.txt
- *    (docked, fps, opacity, overlay, rumble). O launcher NUNCA
- *    escreve DM_FSR nem DM_RENDER_SCALE (o host DS nem tem FSR).
+ *  - Configuracoes: as chaves que o host le em settings.txt
+ *    (docked, fps, opacity, overlay, rumble) mais res= (a altura
+ *    escolhida, 480/540/720/1080). O launcher escreve
+ *    DM_RENDER_SCALE no env.txt a cada Jogar (0,5 a 1,0 do tamanho
+ *    do jogo); DM_FSR nunca (o host DS nem tem FSR).
  *  - Sobre / log: pacote, versao (marcador desta build), status
  *    dos dados, driver atual e as ultimas 30 linhas do log.
  */
@@ -118,6 +120,7 @@ public class DarkSoulsLauncherActivity extends Activity {
     }
 
     private int setDocked = 1;
+    private int setRes = 1080;
     private int setFps = 0;
     private int setOpacity = 60;
     private int setOverlay = 1;
@@ -522,8 +525,9 @@ public class DarkSoulsLauncherActivity extends Activity {
             // Antes de Jogar, garantir o estado do driver: se Turnip
             // esta escolhido mas o .so sumiu, tentar extrair de novo;
             // se ainda faltar, voltar sozinho ao Sistema (nunca travar).
-            // E SEMPRE remover DM_FSR / DM_RENDER_SCALE do env.txt, para
-            // o host com FSR nunca ligar FSR/escala por acidente.
+            // E SEMPRE reescrever DM_RENDER_SCALE no env.txt com a
+            // escala da Resolucao escolhida (sanitizeEnv tira o DM_FSR,
+            // que o host nem tem, junto com a escala antiga).
             File so = driverSoFile();
             if (!"system".equals(driverChoice) && (so == null || !so.isFile())) {
                 boolean recovered = driverChoice.startsWith("turnip-") && extractBundledTurnip(driverChoice, driverChoice + ".zip");
@@ -643,7 +647,7 @@ public class DarkSoulsLauncherActivity extends Activity {
     }
 
     private void loadSettings() {
-        setDocked = 0; setFps = 1; setOpacity = 60; setOverlay = 1; setRumble = 1;
+        setDocked = 0; setRes = 1080; setFps = 1; setOpacity = 60; setOverlay = 1; setRumble = 1;
         File f = new File(dataDir(), "settings.txt");
         if (!f.isFile()) return;
         BufferedReader r = null;
@@ -652,6 +656,7 @@ public class DarkSoulsLauncherActivity extends Activity {
             String line;
             while ((line = r.readLine()) != null) {
                 if (line.startsWith("docked=")) setDocked = parseInt(line.substring(7), setDocked);
+                else if (line.startsWith("res=")) { int v = parseInt(line.substring(4), setRes); if (v == 480 || v == 540 || v == 720 || v == 1080) setRes = v; }
                 else if (line.startsWith("fps=")) setFps = parseInt(line.substring(4), setFps);
                 else if (line.startsWith("opacity=")) setOpacity = parseInt(line.substring(8), setOpacity);
                 else if (line.startsWith("overlay=")) setOverlay = parseInt(line.substring(8), setOverlay);
@@ -758,8 +763,8 @@ public class DarkSoulsLauncherActivity extends Activity {
     }
 
     // Escreve (ou remove) DM_VK_DRIVER no env.txt, preservando as
-    // outras linhas. NUNCA escreve DM_FSR, DM_RENDER_SCALE ou
-    // DM_VK_HOOK_DIR.
+    // outras linhas. NUNCA escreve DM_FSR ou DM_VK_HOOK_DIR (a escala
+    // DM_RENDER_SCALE e escrita pelo sanitizeEnv a cada Jogar).
     private void writeEnvDriver() {
         File env = new File(dataDir(), "env.txt");
         List<String> lines = new ArrayList<String>();
@@ -793,22 +798,42 @@ public class DarkSoulsLauncherActivity extends Activity {
         }
     }
 
-    // Remove DM_FSR / DM_RENDER_SCALE / DM_VK_HOOK_DIR do env.txt,
+    // Escala de resolucao (DM_RENDER_SCALE, lida pelo host no boot):
+    // o host so aceita de 0,5 a 1,0 do tamanho do jogo (720p no
+    // Handheld, 1080p no Docked). 480p so cabe no Handheld (no Docked
+    // o piso 0,5 vira 540p); 1080p so vale no Docked (no Handheld o
+    // teto 1,0 e 720p). Padrao 1080 = nativo nos dois modos.
+    private float renderScale() {
+        float base = setDocked == 0 ? 720f : 1080f;
+        float sc = setRes / base;
+        if (sc < 0.5f) sc = 0.5f;
+        if (sc > 1.0f) sc = 1.0f;
+        return sc;
+    }
+    private int effectiveRes() {
+        float base = setDocked == 0 ? 720f : 1080f;
+        return Math.round(base * renderScale());
+    }
+    private String renderScaleText() {
+        return String.format(java.util.Locale.US, "%.2f", renderScale());
+    }
+
+    // Remove DM_FSR / DM_VK_HOOK_DIR do env.txt e reescreve
+    // DM_RENDER_SCALE com a escala da Resolucao escolhida,
     // preservando o resto (inclusive DM_VK_DRIVER). Chamado antes de
     // todo Jogar: FSR e escala ficam desligados mesmo se alguem
     // editou o env.txt a mao.
     private void sanitizeEnv() {
         File env = new File(dataDir(), "env.txt");
-        if (!env.isFile()) { writeEnvDriver(); return; }
+        if (!env.isFile()) writeEnvDriver();
         List<String> lines = new ArrayList<String>();
-        boolean changed = false;
         BufferedReader r = null;
         try {
             r = new BufferedReader(new FileReader(env));
             String line;
             while ((line = r.readLine()) != null) {
                 if (line.startsWith("DM_FSR=") || line.startsWith("DM_RENDER_SCALE=")
-                        || line.startsWith("DM_VK_HOOK_DIR=")) { changed = true; continue; }
+                        || line.startsWith("DM_VK_HOOK_DIR=")) continue;
                 lines.add(line);
             }
         } catch (Exception ignored) {
@@ -816,7 +841,7 @@ public class DarkSoulsLauncherActivity extends Activity {
         } finally {
             try { if (r != null) r.close(); } catch (Exception ignored) {}
         }
-        if (!changed) return;
+        lines.add("DM_RENDER_SCALE=" + renderScaleText());
         File tmp = new File(dataDir(), "env.txt.tmp");
         try {
             FileOutputStream out = new FileOutputStream(tmp);
@@ -1104,7 +1129,7 @@ public class DarkSoulsLauncherActivity extends Activity {
                 while ((line = r.readLine()) != null) {
                     if (line.startsWith("docked=") || line.startsWith("fps=")
                             || line.startsWith("opacity=") || line.startsWith("overlay=")
-                            || line.startsWith("rumble=")) continue;
+                            || line.startsWith("res=") || line.startsWith("rumble=")) continue;
                     lines.add(line);
                 }
             } catch (Exception ignored) {
@@ -1113,6 +1138,7 @@ public class DarkSoulsLauncherActivity extends Activity {
             }
         }
         lines.add(0, "opacity=" + setOpacity);
+        lines.add(0, "res=" + setRes);
         lines.add(0, "fps=" + setFps);
         lines.add(0, "docked=" + setDocked);
         lines.add(0, "rumble=" + setRumble);
@@ -1136,6 +1162,7 @@ public class DarkSoulsLauncherActivity extends Activity {
         col.setOrientation(LinearLayout.VERTICAL);
         col.setPadding(dp(16), dp(8), dp(16), dp(8));
         final Button mode = new Button(this);
+        final Button res = new Button(this);
         final Button fps = new Button(this);
         final Button overlay = new Button(this);
         final Button rumble = new Button(this);
@@ -1145,6 +1172,8 @@ public class DarkSoulsLauncherActivity extends Activity {
         final Runnable refresh = new Runnable() {
             @Override public void run() {
                 mode.setText("Modo: " + (setDocked == 0 ? "Handheld" : "Docked"));
+                int eff = effectiveRes();
+                res.setText("Resolução: " + setRes + "p" + (eff != setRes ? " (efetivo " + eff + "p)" : ""));
                 fps.setText("Mostrar FPS: " + (setFps == 0 ? "OFF" : "ON"));
                 overlay.setText("Gamepad na tela: " + (setOverlay == 0 ? "OFF" : "ON"));
                 rumble.setText("Vibra\u00e7\u00e3o: " + (setRumble == 0 ? "OFF" : "ON"));
@@ -1153,6 +1182,9 @@ public class DarkSoulsLauncherActivity extends Activity {
         };
         mode.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { setDocked = setDocked == 0 ? 1 : 0; saveSettings(); refresh.run(); }
+        });
+        res.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { setRes = setRes == 480 ? 540 : setRes == 540 ? 720 : setRes == 720 ? 1080 : 480; saveSettings(); refresh.run(); }
         });
         fps.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { setFps = setFps == 0 ? 1 : 0; saveSettings(); refresh.run(); }
@@ -1170,6 +1202,7 @@ public class DarkSoulsLauncherActivity extends Activity {
         });
         styleDialogButton(configDriversBtn); col.addView(configDriversBtn, spacedParams());
         styleDialogButton(mode); col.addView(mode, spacedParams());
+        styleDialogButton(res); col.addView(res, spacedParams());
         styleDialogButton(fps); col.addView(fps, spacedParams());
         styleDialogButton(overlay); col.addView(overlay, spacedParams());
         styleDialogButton(rumble); col.addView(rumble, spacedParams());
@@ -1208,7 +1241,7 @@ public class DarkSoulsLauncherActivity extends Activity {
         TextView note = new TextView(this);
         note.setTextSize(13);
         note.setTextColor(Color.WHITE);
-        note.setText("Controles, Sobre e log ficam aqui, dentro da Configuracao. Drivers: Drivers de GPU (Sistema, Turnip a7xx, Turnip a8xx ou importado). So DM_VK_DRIVER e escrito, nunca DM_FSR/DM_RENDER_SCALE.");
+        note.setText("Resolução escreve DM_RENDER_SCALE no env.txt a cada Jogar (0,5 a 1,0 do tamanho do jogo): 480p só vale no Handheld (no Docked o mínimo é 540p) e 1080p só no Docked (no Handheld o máximo é 720p). DM_FSR nunca é escrito (o host não tem FSR).");
         col.addView(note);
         refresh.run();
         ScrollView sv = new ScrollView(this);

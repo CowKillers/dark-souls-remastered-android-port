@@ -31,8 +31,8 @@ keystore (veja `BUILD.md`).
 ## Como compilar
 
 Veja `BUILD.md`. Resumo: compile o host (`host/`), depois o launcher
-(`launcher/`). A próxima build precisa de `versionCode` maior que 10:
-este repo já marca 10. Trocar a chave de assinatura exige desinstalação
+(`launcher/`). A próxima build precisa de `versionCode` maior que 11:
+este repo já marca 11. Trocar a chave de assinatura exige desinstalação
 limpa com backup de `files/` antes.
 
 ## Problemas conhecidos
@@ -53,6 +53,10 @@ limpa com backup de `files/` antes.
   do alpha test (GREATER) e o patch adrenotools.
 - v10: sem a divisória/painel da abinha — os botões flutuam direto
   sobre a arte (sem fundo sólido e sem a linha laranja na borda).
+- v11: Resolução 480p/540p/720p/1080p na Configuração — o launcher
+  grava `res=` em `settings.txt` e escreve `DM_RENDER_SCALE` no
+  `env.txt` a cada Jogar (0,5 a 1,0 do tamanho do jogo: 480p só vale
+  no Handheld, 1080p só no Docked; padrão 1080 = nativo nos dois).
 - v8: igual à v7, sem o som de fogueira e sem o botão de mudo
   (removidos a pedido do usuário; brasas, YouTube e Ocultar ficam).
 - v9: launcher refeito com a arte do cavaleiro e do eclipse (título
